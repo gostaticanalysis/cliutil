@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/types"
 
+	"go.uber.org/multierr"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -98,11 +99,37 @@ func (conf *Config) ObjectOf(name string) (types.Object, error) {
 	return fieldOrMethod, nil
 }
 
+// CurrentPackage load current pacakge.
+func (conf *Config) CurrentPackage() (*types.Package, error) {
+	return conf.load("")
+}
+
 func (conf *Config) load(name string) (*types.Package, error) {
-	pkgs, err := packages.Load(conf.Packages, name)
+	var patterns []string
+	if name != "" {
+		patterns = []string{name}
+	}
+	pkgs, err := packages.Load(conf.Packages, patterns...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not find package: %w", err)
 	}
 
-	return pkgs[0].Types, nil
+	if len(pkgs) == 0 {
+		return nil, fmt.Errorf("could not find package: %q", name)
+	}
+
+	if len(pkgs[0].Errors) != 0 {
+		var rerr error
+		for _, err := range pkgs[0].Errors {
+			rerr = multierr.Append(rerr, err)
+			return nil, rerr
+		}
+	}
+
+	tpkg := pkgs[0].Types
+	if tpkg == nil {
+		return nil, fmt.Errorf("could not find package: %q", name)
+	}
+
+	return tpkg, nil
 }

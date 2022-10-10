@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"errors"
 	"go/types"
+	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/gostaticanalysis/cliutil"
-	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/objectpath"
 )
 
@@ -85,12 +87,7 @@ func TestObjectOf(t *testing.T) {
 			t.Parallel()
 
 			dir := t.TempDir()
-			conf := &cliutil.Config{
-				Packages: &packages.Config{
-					Mode: cliutil.DefaultConfig.Packages.Mode,
-					Dir:  dir,
-				},
-			}
+			conf := cliutil.NewConfigInDir(dir)
 
 			// for third party packages
 			pkg, _, _, _ := cliutil.Split(tt.name)
@@ -120,6 +117,58 @@ func TestObjectOf(t *testing.T) {
 
 			if got != tt.want {
 				t.Errorf("want %s but got %s", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestCurrentPackage(t *testing.T) {
+	t.Parallel()
+
+	const (
+		noErr   = false
+		withErr = true
+	)
+
+	cases := []struct {
+		name    string
+		wantErr bool
+	}{
+		{"a", noErr},
+		{"example.com/cliutil", noErr},
+		{"---", withErr},
+	}
+
+	for _, tt := range cases {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			dir := t.TempDir()
+			conf := cliutil.NewConfigInDir(dir)
+
+			execCmd(t, dir, "go mod init "+tt.name)
+			gofile := filepath.Join(dir, "a.go")
+			pkgname := path.Base(tt.name)
+			src := []byte("package " + pkgname)
+			if err := os.WriteFile(gofile, src, 0o644); err != nil {
+				t.Fatal("unexpected error:", err)
+			}
+
+			pkg, err := conf.CurrentPackage()
+			switch {
+			case tt.wantErr && err == nil:
+				t.Fatal("expected error did not occur")
+			case !tt.wantErr && err != nil:
+				t.Fatal("unexpected error:", err)
+			case err != nil:
+				t.Skip("expected error:", err)
+			}
+
+			t.Log(t.Name(), pkg)
+
+			if got := pkg.Path(); got != tt.name {
+				t.Errorf("want %s but got %s", tt.name, got)
 			}
 		})
 	}
