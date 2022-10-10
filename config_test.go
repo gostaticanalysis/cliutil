@@ -34,12 +34,7 @@ func TestTypeOf(t *testing.T) {
 			t.Parallel()
 
 			dir := t.TempDir()
-			conf := &cliutil.Config{
-				Packages: &packages.Config{
-					Mode: cliutil.DefaultConfig.Packages.Mode,
-					Dir:  dir,
-				},
-			}
+			conf := cliutil.NewConfigInDir(dir)
 
 			// for third party packages
 			pkg, _, _, _ := cliutil.Split(tt.name)
