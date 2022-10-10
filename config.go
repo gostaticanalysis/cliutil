@@ -12,6 +12,17 @@ type Config struct {
 	Packages *packages.Config
 }
 
+// NewConfigInDir creates [Config] and set dir to Packages.Dir.
+// Packages.Mode will be same with DefaultConfig.Packages.Mode.
+func NewConfigInDir(dir string) *Config {
+	return &Config{
+		Packages: &packages.Config{
+			Mode: DefaultConfig.Packages.Mode,
+			Dir:  dir,
+		},
+	}
+}
+
 // TypeOf returns the value of types.Type which represented by the name.
 // If any type could not be found, TypeOf returns [ErrNotFound] as the second return value.
 func (conf *Config) TypeOf(name string) (types.Type, error) {
