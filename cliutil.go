@@ -2,7 +2,6 @@ package cliutil
 
 import (
 	"errors"
-	"fmt"
 	"go/types"
 	"strings"
 
@@ -10,86 +9,32 @@ import (
 )
 
 var (
+	// ErrNotFound indicates the object or the type could not be found
 	ErrNotFound = errors.New("not found")
 )
 
-var DefaultConfig = &packages.Config{Mode: packages.NeedTypes}
+// DefaultConfig is the default value of [Config].
+var DefaultConfig = &Config{
+	Packages: &packages.Config{
+		Mode: packages.NeedTypes,
+	},
+}
 
+// TypeOf is wrapper of DefaultConfig.TypeOf(name).
 func TypeOf(name string) (types.Type, error) {
-	first, second, _, ptr := Split(name)
-
-	if second == "" {
-		obj := types.Universe.Lookup(name)
-		if obj == nil {
-			return nil, fmt.Errorf("%s: %w", name, ErrNotFound)
-		}
-
-		typ := obj.Type()
-		if ptr {
-			typ = types.NewPointer(typ)
-		}
-
-		return typ, nil
-	}
-
-	pkg, err := load(first)
-	if err != nil {
-		return nil, fmt.Errorf("load %s: %w", first, err)
-	}
-
-	obj := pkg.Scope().Lookup(second)
-	if obj == nil {
-		return nil, fmt.Errorf("%s: %w", name, ErrNotFound)
-	}
-
-	typ := obj.Type()
-	if ptr {
-		typ = types.NewPointer(typ)
-	}
-
-	return typ, nil
+	return DefaultConfig.TypeOf(name)
 }
 
+// ObjectOf is wrapper of DefaultConfig.ObjectOf(name).
 func ObjectOf(name string) (types.Object, error) {
-	first, second, third, ptr := Split(name)
-	if second == "" {
-		obj := types.Universe.Lookup(name)
-		if obj == nil {
-			return nil, fmt.Errorf("%s: %w", name, ErrNotFound)
-		}
-		return obj, nil
-	}
-
-	pkg, err := load(first)
-	if err != nil {
-		return nil, fmt.Errorf("load %s: %w", first, err)
-	}
-
-	obj := pkg.Scope().Lookup(second)
-	if obj == nil {
-		return nil, fmt.Errorf("%s: %w", name, ErrNotFound)
-	}
-	if third == "" {
-		return obj, nil
-	}
-
-	fieldOrMethod, _, _ := types.LookupFieldOrMethod(obj.Type(), ptr, pkg, third)
-	if fieldOrMethod == nil {
-		return nil, fmt.Errorf("%s: %w", name, ErrNotFound)
-	}
-
-	return fieldOrMethod, nil
+	return DefaultConfig.ObjectOf(name)
 }
 
-func load(name string) (*types.Package, error) {
-	pkgs, err := packages.Load(DefaultConfig, name)
-	if err != nil {
-		return nil, err
-	}
-
-	return pkgs[0].Types, nil
-}
-
+// Split splits name into three sections.
+// The first section means a package name or a pre-declared identifier.
+// The second section means an object of package.
+// The third section means a field or a method.
+// The fourth return value indicates whether name has "*" prefix or not.
 func Split(name string) (first, second, third string, ptr bool) {
 
 	slashed := strings.Split(name, "/")
@@ -100,6 +45,7 @@ func Split(name string) (first, second, third string, ptr bool) {
 		splited[0] = prefix + "/" + splited[0]
 	}
 	first = strings.TrimLeft(splited[0], "(")
+	first = strings.TrimRight(first, ")")
 	if strings.HasPrefix(first, "*") {
 		first = first[1:]
 		ptr = true
