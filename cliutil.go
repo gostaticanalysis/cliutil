@@ -30,6 +30,11 @@ func ObjectOf(name string) (types.Object, error) {
 	return DefaultConfig.ObjectOf(name)
 }
 
+// CurrentPackage is wrapper of DefaultConfig.CurrentPackage().
+func CurrentPackage() (*types.Package, error) {
+	return DefaultConfig.CurrentPackage()
+}
+
 // Split splits name into three sections.
 // The first section means a package name or a pre-declared identifier.
 // The second section means an object of package.
